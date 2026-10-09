@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Harga Dolar, Emas & Saham</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 Harga Pasar Real-time</h1>
+      <p class="subtitle">Dolar · Emas · Saham Indonesia</p>
+      <button id="refreshBtn" class="btn-refresh">🔄 Perbarui Data</button>
+      <p id="lastUpdate" class="last-update">Memuat data...</p>
+    </header>
+
+    <main class="grid">
+      <!-- Kartu Dolar -->
+      <section class="card card-usd">
+        <div class="card-icon">💵</div>
+        <h2>Kurs USD / IDR</h2>
+        <div class="price" id="usdPrice">—</div>
+        <p class="meta" id="usdMeta">Mengambil data...</p>
+      </section>
+
+      <!-- Kartu Emas -->
+      <section class="card card-gold">
+        <div class="card-icon">🥇</div>
+        <h2>Harga Emas (Antam / Logam Mulia)</h2>
+        <div class="price" id="goldPrice">—</div>
+        <p class="meta" id="goldMeta">Mengambil data...</p>
+        <div class="gold-details" id="goldDetails"></div>
+      </section>
+
+      <!-- Kartu Saham -->
+      <section class="card card-stocks full-width">
+        <div class="card-icon">📈</div>
+        <h2>Saham Populer Indonesia (IDX)</h2>
+        <div class="stocks-table-wrapper">
+          <table class="stocks-table">
+            <thead>
+              <tr>
+                <th>Kode</th>
+                <th>Nama</th>
+                <th>Harga</th>
+                <th>Perubahan</th>
+              </tr>
+            </thead>
+            <tbody id="stocksBody">
+              <tr><td colspan="4">Memuat data saham...</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">Data saham diambil dari sumber publik (delay mungkin terjadi). Untuk data real-time akurat gunakan API berbayar.</p>
+      </section>
+    </main>
+
+    <footer>
+      <p>Dibuat untuk <a href="https://github.com/amosmarbun86-droid" target="_blank">@amosmarbun86-droid</a> · Data dari API publik gratis</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
