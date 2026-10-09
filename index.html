@@ -12,10 +12,21 @@
   <div class="container">
     <header>
       <h1>📊 Harga Pasar Real-time</h1>
-      <p class="subtitle">Dolar · Emas · Saham Indonesia</p>
+      <p class="subtitle">Dolar · Emas · Saham Indonesia (Invezgo)</p>
       <button id="refreshBtn" class="btn-refresh">🔄 Perbarui Data</button>
       <p id="lastUpdate" class="last-update">Memuat data...</p>
     </header>
+
+    <!-- API Key Input -->
+    <section class="card api-key-card">
+      <h2>🔑 Invezgo API Key</h2>
+      <p class="api-hint">Daftar gratis di <a href="https://invezgo.com" target="_blank" rel="noopener">invezgo.com</a> → Settings → API → Buat API Key. Key disimpan di browser (localStorage).</p>
+      <div class="api-key-row">
+        <input type="password" id="apiKeyInput" placeholder="Tempel API Key Invezgo di sini..." autocomplete="off" />
+        <button id="saveKeyBtn" class="btn-save">Simpan</button>
+      </div>
+      <p id="keyStatus" class="key-status"></p>
+    </section>
 
     <main class="grid">
       <!-- Kartu Dolar -->
@@ -38,7 +49,7 @@
       <!-- Kartu Saham -->
       <section class="card card-stocks full-width">
         <div class="card-icon">📈</div>
-        <h2>Saham Populer Indonesia (IDX)</h2>
+        <h2>Saham Populer Indonesia (IDX) — via Invezgo</h2>
         <div class="stocks-table-wrapper">
           <table class="stocks-table">
             <thead>
@@ -46,20 +57,23 @@
                 <th>Kode</th>
                 <th>Nama</th>
                 <th>Harga</th>
-                <th>Perubahan</th>
+                <th>Open</th>
+                <th>High</th>
+                <th>Low</th>
+                <th>Volume</th>
               </tr>
             </thead>
             <tbody id="stocksBody">
-              <tr><td colspan="4">Memuat data saham...</td></tr>
+              <tr><td colspan="7">Masukkan API Key Invezgo lalu klik Perbarui Data</td></tr>
             </tbody>
           </table>
         </div>
-        <p class="note">Data saham diambil dari sumber publik (delay mungkin terjadi). Untuk data real-time akurat gunakan API berbayar.</p>
+        <p class="note">Data diambil dari <strong>Invezgo API</strong> (endpoint intraday-data). Pastikan API Key valid dan paket aktif.</p>
       </section>
     </main>
 
     <footer>
-      <p>Dibuat untuk <a href="https://github.com/amosmarbun86-droid" target="_blank">@amosmarbun86-droid</a> · Data dari API publik gratis</p>
+      <p>Dibuat untuk <a href="https://github.com/amosmarbun86-droid" target="_blank">@amosmarbun86-droid</a> · USD & Emas gratis · Saham via Invezgo</p>
     </footer>
   </div>
 

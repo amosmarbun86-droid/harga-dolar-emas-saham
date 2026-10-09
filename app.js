@@ -1,12 +1,14 @@
 // ===== Konfigurasi =====
 const STOCKS = [
-  { code: 'BBCA.JK', name: 'Bank Central Asia' },
-  { code: 'BBRI.JK', name: 'Bank Rakyat Indonesia' },
-  { code: 'BMRI.JK', name: 'Bank Mandiri' },
-  { code: 'TLKM.JK', name: 'Telkom Indonesia' },
-  { code: 'ASII.JK', name: 'Astra International' },
-  { code: 'GOTO.JK', name: 'GoTo Gojek Tokopedia' },
+  { code: 'BBCA', name: 'Bank Central Asia' },
+  { code: 'BBRI', name: 'Bank Rakyat Indonesia' },
+  { code: 'BMRI', name: 'Bank Mandiri' },
+  { code: 'TLKM', name: 'Telkom Indonesia' },
+  { code: 'ASII', name: 'Astra International' },
+  { code: 'GOTO', name: 'GoTo Gojek Tokopedia' },
 ];
+
+const STORAGE_KEY = 'invezgo_api_key';
 
 // ===== Helper =====
 function formatIDR(num) {
@@ -18,7 +20,7 @@ function formatIDR(num) {
   }).format(num);
 }
 
-function formatNumber(num, decimals = 2) {
+function formatNumber(num, decimals = 0) {
   if (num == null || isNaN(num)) return '—';
   return new Intl.NumberFormat('id-ID', {
     minimumFractionDigits: decimals,
@@ -27,8 +29,45 @@ function formatNumber(num, decimals = 2) {
 }
 
 function setLoading(el, loading = true) {
+  if (!el) return;
   if (loading) el.classList.add('loading');
   else el.classList.remove('loading');
+}
+
+function getApiKey() {
+  return localStorage.getItem(STORAGE_KEY) || '';
+}
+
+function setApiKey(key) {
+  if (key) localStorage.setItem(STORAGE_KEY, key.trim());
+  else localStorage.removeItem(STORAGE_KEY);
+}
+
+// ===== UI API Key =====
+function initApiKeyUI() {
+  const input = document.getElementById('apiKeyInput');
+  const status = document.getElementById('keyStatus');
+  const saved = getApiKey();
+
+  if (saved) {
+    input.value = saved;
+    input.type = 'password';
+    status.textContent = '✓ API Key tersimpan di browser';
+    status.classList.remove('error');
+  }
+
+  document.getElementById('saveKeyBtn').addEventListener('click', () => {
+    const key = input.value.trim();
+    if (!key) {
+      status.textContent = 'API Key tidak boleh kosong';
+      status.classList.add('error');
+      return;
+    }
+    setApiKey(key);
+    status.textContent = '✓ API Key berhasil disimpan';
+    status.classList.remove('error');
+    loadAll();
+  });
 }
 
 // ===== Fetch USD/IDR =====
@@ -38,7 +77,6 @@ async function fetchUSD() {
   setLoading(priceEl, true);
 
   try {
-    // Free currency API (no key needed)
     const res = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json');
     const data = await res.json();
     const idr = data.usd?.idr;
@@ -66,16 +104,13 @@ async function fetchGold() {
   setLoading(priceEl, true);
 
   try {
-    // Logam Mulia API (Indonesia gold prices)
     const res = await fetch('https://logam-mulia-api.iamutaki.workers.dev/api/prices/anekalogam');
     const data = await res.json();
 
-    // Struktur respons bisa bervariasi, coba beberapa kemungkinan
     let buy = null, sell = null, source = 'Aneka Logam';
 
     if (data?.data) {
       const d = data.data;
-      // Cari harga per gram atau yang paling umum
       if (Array.isArray(d)) {
         const item = d.find(x => x.weight == 1 || x.berat == 1 || x.unit === 'gram') || d[0];
         buy = item?.buy || item?.beli || item?.harga_beli;
@@ -89,7 +124,6 @@ async function fetchGold() {
       sell = data.sell;
     }
 
-    // Fallback: coba endpoint lain jika kosong
     if (!buy && !sell) {
       const res2 = await fetch('https://logam-mulia-api.iamutaki.workers.dev/api/prices/hargaemas-org');
       const data2 = await res2.json();
@@ -111,12 +145,10 @@ async function fetchGold() {
       if (sell) details += `<span>Jual: <strong>${formatIDR(sell)}</strong></span>`;
       detailsEl.innerHTML = details;
     } else {
-      // Fallback ke harga internasional XAU/IDR
       const res3 = await fetch('https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/xau.json');
       const data3 = await res3.json();
       const xauIdr = data3.xau?.idr;
       if (xauIdr) {
-        // XAU biasanya per troy ounce (~31.1 gram)
         const perGram = xauIdr / 31.1035;
         priceEl.textContent = formatIDR(perGram);
         metaEl.textContent = 'Harga spot internasional (per gram)';
@@ -135,61 +167,162 @@ async function fetchGold() {
   }
 }
 
-// ===== Fetch Saham (via Yahoo Finance chart endpoint - CORS mungkin terbatas) =====
+// ===== Fetch Saham via Invezgo =====
 async function fetchStocks() {
   const tbody = document.getElementById('stocksBody');
-  tbody.innerHTML = '<tr><td colspan="4" class="loading">Memuat data saham...</td></tr>';
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    tbody.innerHTML = '<tr><td colspan="7">Masukkan & simpan API Key Invezgo terlebih dahulu</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = '<tr><td colspan="7" class="loading">Memuat data saham dari Invezgo...</td></tr>';
 
   const rows = [];
 
-  for (const stock of STOCKS) {
-    try {
-      // Yahoo Finance unofficial chart endpoint
-      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${stock.code}?interval=1d&range=1d`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+  // Coba batch dulu (lebih efisien)
+  const codes = STOCKS.map(s => s.code).join('|');
+  let batchOk = false;
 
+  try {
+    const batchUrl = `https://api.invezgo.com/batch/intraday-data/${codes}?market=RG`;
+    const res = await fetch(batchUrl, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Accept': 'application/json',
+      },
+    });
+
+    if (res.status === 401) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#f87171">API Key tidak valid (401). Periksa kembali key-nya.</td></tr>';
+      return;
+    }
+    if (res.status === 402) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#f87171">Paket tidak mencukupi (402). Upgrade paket Invezgo atau aktifkan trial.</td></tr>';
+      return;
+    }
+    if (res.status === 429) {
+      tbody.innerHTML = '<tr><td colspan="7" style="color:#f87171">Rate limit (429). Tunggu sebentar lalu coba lagi.</td></tr>';
+      return;
+    }
+
+    if (res.ok) {
       const data = await res.json();
-      const meta = data?.chart?.result?.[0]?.meta;
+      // Respons batch bisa berupa object keyed by code atau array
+      const items = Array.isArray(data) ? data : (data?.data || data);
 
-      if (meta) {
-        const price = meta.regularMarketPrice;
-        const prev = meta.chartPreviousClose || meta.previousClose;
-        const change = price - prev;
-        const changePct = prev ? (change / prev) * 100 : 0;
-        const changeClass = change >= 0 ? 'change-up' : 'change-down';
-        const sign = change >= 0 ? '+' : '';
+      if (items && (Array.isArray(items) || typeof items === 'object')) {
+        for (const stock of STOCKS) {
+          let item = null;
+          if (Array.isArray(items)) {
+            item = items.find(x => (x.code || x.symbol || '').toUpperCase() === stock.code);
+          } else {
+            item = items[stock.code] || items[stock.code.toLowerCase()];
+          }
+
+          if (item) {
+            const price = item.close ?? item.last ?? item.price ?? item.c;
+            const open = item.open ?? item.o;
+            const high = item.high ?? item.h;
+            const low = item.low ?? item.l;
+            const volume = item.volume ?? item.vol ?? item.v;
+
+            rows.push(`
+              <tr>
+                <td><strong>${stock.code}</strong></td>
+                <td>${stock.name}</td>
+                <td>${formatNumber(price)}</td>
+                <td>${formatNumber(open)}</td>
+                <td>${formatNumber(high)}</td>
+                <td>${formatNumber(low)}</td>
+                <td>${formatNumber(volume)}</td>
+              </tr>
+            `);
+          } else {
+            rows.push(`
+              <tr>
+                <td><strong>${stock.code}</strong></td>
+                <td>${stock.name}</td>
+                <td colspan="5">Tidak ada data</td>
+              </tr>
+            `);
+          }
+        }
+        batchOk = rows.length > 0;
+      }
+    }
+  } catch (err) {
+    console.warn('Batch gagal, coba individual:', err.message);
+  }
+
+  // Fallback: request individual per saham
+  if (!batchOk) {
+    rows.length = 0;
+    for (const stock of STOCKS) {
+      try {
+        const url = `https://api.invezgo.com/analysis/intraday-data/${stock.code}?market=RG`;
+        const res = await fetch(url, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Accept': 'application/json',
+          },
+        });
+
+        if (res.status === 401) {
+          tbody.innerHTML = '<tr><td colspan="7" style="color:#f87171">API Key tidak valid (401).</td></tr>';
+          return;
+        }
+        if (res.status === 402) {
+          tbody.innerHTML = '<tr><td colspan="7" style="color:#f87171">Paket tidak mencukupi (402).</td></tr>';
+          return;
+        }
+
+        if (!res.ok) {
+          rows.push(`
+            <tr>
+              <td><strong>${stock.code}</strong></td>
+              <td>${stock.name}</td>
+              <td colspan="5">Error ${res.status}</td>
+            </tr>
+          `);
+          continue;
+        }
+
+        const data = await res.json();
+        const item = data?.data || data;
+
+        const price = item.close ?? item.last ?? item.price ?? item.c;
+        const open = item.open ?? item.o;
+        const high = item.high ?? item.h;
+        const low = item.low ?? item.l;
+        const volume = item.volume ?? item.vol ?? item.v;
 
         rows.push(`
           <tr>
-            <td><strong>${stock.code.replace('.JK', '')}</strong></td>
+            <td><strong>${stock.code}</strong></td>
             <td>${stock.name}</td>
-            <td>${formatNumber(price, 0)}</td>
-            <td class="${changeClass}">${sign}${formatNumber(change, 0)} (${sign}${formatNumber(changePct, 2)}%)</td>
+            <td>${formatNumber(price)}</td>
+            <td>${formatNumber(open)}</td>
+            <td>${formatNumber(high)}</td>
+            <td>${formatNumber(low)}</td>
+            <td>${formatNumber(volume)}</td>
           </tr>
         `);
-      } else {
+      } catch (err) {
+        console.warn(`Gagal ${stock.code}:`, err.message);
         rows.push(`
           <tr>
-            <td><strong>${stock.code.replace('.JK', '')}</strong></td>
+            <td><strong>${stock.code}</strong></td>
             <td>${stock.name}</td>
-            <td colspan="2">Data tidak tersedia</td>
+            <td colspan="5">Gagal memuat</td>
           </tr>
         `);
       }
-    } catch (err) {
-      console.warn(`Gagal load ${stock.code}:`, err.message);
-      rows.push(`
-        <tr>
-          <td><strong>${stock.code.replace('.JK', '')}</strong></td>
-          <td>${stock.name}</td>
-          <td colspan="2">Gagal memuat (CORS/rate limit)</td>
-        </tr>
-      `);
     }
   }
 
-  tbody.innerHTML = rows.join('') || '<tr><td colspan="4">Tidak ada data</td></tr>';
+  tbody.innerHTML = rows.join('') || '<tr><td colspan="7">Tidak ada data</td></tr>';
 }
 
 // ===== Main =====
@@ -207,7 +340,8 @@ async function loadAll() {
 
 document.getElementById('refreshBtn').addEventListener('click', loadAll);
 
-// Auto load on start
+// Init
+initApiKeyUI();
 loadAll();
 
 // Auto refresh every 5 minutes

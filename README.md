@@ -1,52 +1,52 @@
 # Harga Dolar, Emas & Saham
 
-Aplikasi web sederhana untuk memantau:
+Aplikasi web untuk memantau:
 
-- **Kurs USD/IDR** (Dolar Amerika terhadap Rupiah)
-- **Harga Emas** (Logam Mulia / Antam di Indonesia)
-- **Saham Populer IDX** (BBCA, BBRI, BMRI, TLKM, ASII, GOTO)
+- **Kurs USD/IDR** (gratis)
+- **Harga Emas** Logam Mulia Indonesia (gratis)
+- **Saham IDX** via **Invezgo API** (butuh API Key)
 
-## Fitur
+## Cara Pakai
 
-- Tampilan modern & responsif (mobile-friendly)
-- Tombol **Perbarui Data** manual
-- Auto-refresh setiap 5 menit
-- Sumber data dari API publik gratis (tanpa API key)
+### 1. Dapatkan API Key Invezgo (gratis)
 
-## Cara Menjalankan
+1. Buka [https://invezgo.com](https://invezgo.com) dan daftar / login
+2. Pilih paket (ada trial / free tier)
+3. Masuk ke **Settings → API** → buat API Key
+4. Salin key-nya
 
-### Lokal
-Cukup buka file `index.html` di browser, atau pakai live server:
+### 2. Jalankan Aplikasi
 
-```bash
-npx serve .
-```
+- Buka `index.html` di browser, **atau**
+- Aktifkan GitHub Pages:
+  1. Repo → Settings → Pages
+  2. Source: branch `main`, folder `/ (root)`
+  3. Akses: `https://amosmarbun86-droid.github.io/harga-dolar-emas-saham/`
 
-### GitHub Pages
-1. Buka repository ini di GitHub
-2. Settings → Pages
-3. Source: Deploy from branch `main` / folder `/ (root)`
-4. Simpan, lalu akses `https://amosmarbun86-droid.github.io/harga-dolar-emas-saham/`
+### 3. Masukkan API Key
 
-## Sumber Data
+Di halaman aplikasi, tempel API Key Invezgo → klik **Simpan**.  
+Key disimpan di `localStorage` browser (tidak dikirim ke server manapun selain Invezgo).
+
+## Endpoint yang dipakai
 
 | Data | Sumber |
 |------|--------|
-| Kurs USD/IDR | [currency-api](https://github.com/fawazahmed0/currency-api) (jsDelivr) |
-| Harga Emas | [logam-mulia-api](https://github.com/iamutaki/logam-mulia-api) |
-| Saham IDX | Yahoo Finance (unofficial chart endpoint) |
+| USD/IDR | [currency-api](https://github.com/fawazahmed0/currency-api) |
+| Emas | [logam-mulia-api](https://github.com/iamutaki/logam-mulia-api) |
+| Saham | Invezgo `GET /analysis/intraday-data/{code}?market=RG` & batch |
 
-> **Catatan**: Data saham dari Yahoo Finance kadang terblokir CORS di browser atau rate-limit. Untuk produksi disarankan pakai API berbayar (Invezgo, Alpha Vantage, dll).
+## Saham yang ditampilkan
 
-## Struktur File
+BBCA, BBRI, BMRI, TLKM, ASII, GOTO
 
-```
-├── index.html   # Halaman utama
-├── style.css    # Styling
-├── app.js       # Logic fetch & tampilan
-└── README.md
-```
+## Catatan
+
+- Jangan commit API Key ke repository publik.
+- Jika muncul error 401 → key salah / belum aktif.
+- Error 402 → paket belum cukup / trial habis.
+- Error 429 → rate limit, tunggu sebentar.
 
 ## Lisensi
 
-MIT – silakan dipakai & dimodifikasi bebas.
+MIT
